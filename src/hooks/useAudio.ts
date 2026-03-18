@@ -5,12 +5,24 @@ import * as Tone from 'tone';
 
 export const useAudio = () => {
     const samplerRef = useRef<Tone.Sampler | null>(null);
+    const metroRef = useRef<Tone.Sampler | null>(null);
+    
     const [isLoaded, setIsLoaded] = useState(false);
-    const [volume, setVolume] = useState(0); // Set to 0dB for original loudness
+    const [isMetroLoaded, setIsMetroLoaded] = useState(false);
+    const [volume, setVolume] = useState(0); 
     const [sustain, setSustain] = useState(false);
-    const sustainedNotes = useRef<Set<string>>(new Set());
+    const [transpose, setTranspose] = useState(0);
+    const [bpm, setBpm] = useState(120);
+    const [isMetroPlaying, setIsMetroPlaying] = useState(false);
+    
+    const sustainedNotes = useRef<Map<string, string>>(new Map());
 
     useEffect(() => {
+        // 1. Audio FX
+        const filter = new Tone.Filter({ frequency: 4000, type: "lowpass", rolloff: -12 }).toDestination();
+        const reverb = new Tone.Reverb({ decay: 1.5, wet: 0.1 }).connect(filter);
+
+        // 2. Piano Sampler
         const sampler = new Tone.Sampler({
             urls: {
                 "A0": "A0.mp3", "A1": "A1.mp3", "A2": "A2.mp3", "A3": "A3.mp3", "A4": "A4.mp3", "A5": "A5.mp3", "A6": "A6.mp3", "A7": "A7.mp3",
@@ -19,67 +31,78 @@ export const useAudio = () => {
                 "F#1": "Fs1.mp3", "F#2": "Fs2.mp3", "F#3": "Fs3.mp3", "F#4": "Fs4.mp3", "F#5": "Fs5.mp3", "F#6": "Fs6.mp3", "F#7": "Fs7.mp3"
             },
             baseUrl: "/notes/classic/",
-            // Set attack to 0 to ensure immediate original sound start
-            attack: 0,
-            // Set curve to exponential for more natural feel
-            curve: "exponential",
-            onload: () => {
-                setIsLoaded(true);
-            }
+            curve: "exponential", attack: 0, release: 1, sustain: 1, decay: 1,
+            onload: () => setIsLoaded(true)
+        }).connect(reverb);
+
+        // 3. Metronome Sampler (Using your provided wav)
+        const metronom = new Tone.Sampler({
+            urls: { "C4": "metronome.wav" },
+            baseUrl: "/notes/",
+            onload: () => setIsMetroLoaded(true)
         }).toDestination();
+        metronom.volume.value = -6;
 
         samplerRef.current = sampler;
+        metroRef.current = metronom;
+
+        // 4. Transport Setup for Metronome
+        const repeatId = Tone.Transport.scheduleRepeat((time) => {
+            if (metroRef.current && metroRef.current.loaded) {
+                metroRef.current.triggerAttackRelease("C4", "8n", time);
+            }
+        }, "4n");
 
         return () => {
             sampler.dispose();
+            metronom.dispose();
+            Tone.Transport.clear(repeatId);
+            Tone.Transport.stop();
+            Tone.Transport.cancel();
         };
     }, []);
 
     useEffect(() => {
-        if (samplerRef.current) {
-            samplerRef.current.volume.value = volume;
-        }
+        if (samplerRef.current) samplerRef.current.volume.value = volume;
     }, [volume]);
 
     useEffect(() => {
-        if (!sustain && samplerRef.current) {
-            sustainedNotes.current.forEach(note => {
-                samplerRef.current?.triggerRelease(note);
-            });
-            sustainedNotes.current.clear();
+        Tone.Transport.bpm.value = bpm;
+    }, [bpm]);
+
+    const toggleMetronome = useCallback(async () => {
+        if (Tone.getContext().state !== 'running') await Tone.start();
+        
+        if (isMetroPlaying) {
+            Tone.Transport.stop();
+        } else if (isMetroLoaded) {
+            Tone.Transport.start();
         }
-    }, [sustain]);
+        setIsMetroPlaying(!isMetroPlaying);
+    }, [isMetroPlaying, isMetroLoaded]);
 
     const playNote = useCallback(async (note: string) => {
-        if (Tone.getContext().state !== 'running') {
-            await Tone.start();
-        }
+        if (Tone.getContext().state !== 'running') await Tone.start();
         if (isLoaded && samplerRef.current) {
+            const transposedNote = Tone.Frequency(note).transpose(transpose).toNote();
             sustainedNotes.current.delete(note);
-            // Trigger without explicit time to avoid any jitter
-            samplerRef.current.triggerAttack(note);
+            samplerRef.current.triggerAttack(transposedNote);
         }
-    }, [isLoaded]);
+    }, [isLoaded, transpose]);
 
     const stopNote = useCallback((note: string) => {
+        const transposedNote = Tone.Frequency(note).transpose(transpose).toNote();
         if (sustain) {
-            sustainedNotes.current.add(note);
+            sustainedNotes.current.set(note, transposedNote);
         } else if (samplerRef.current) {
-            samplerRef.current.triggerRelease(note);
+            samplerRef.current.triggerRelease(transposedNote);
         }
-    }, [sustain]);
-
-    const toggleSustain = useCallback(() => {
-        setSustain(prev => !prev);
-    }, []);
+    }, [sustain, transpose]);
 
     return {
-        playNote,
-        stopNote,
-        isLoaded,
-        volume,
-        setVolume,
-        sustain,
-        toggleSustain
+        playNote, stopNote, isLoaded: isLoaded && isMetroLoaded, volume, setVolume,
+        sustain, toggleSustain: () => setSustain(!sustain),
+        transpose, setTranspose,
+        bpm, setBpm, isMetroPlaying, toggleMetronome
     };
 };
