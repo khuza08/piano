@@ -10,7 +10,7 @@ export const useAudio = () => {
     const [isLoaded, setIsLoaded] = useState(false);
     const [isMetroLoaded, setIsMetroLoaded] = useState(false);
     const [volume, setVolume] = useState(0); 
-    const [sustain, setSustain] = useState(false);
+    const [sustain, setSustain] = useState(true);
     const [transpose, setTranspose] = useState(0);
     const [bpm, setBpm] = useState(120);
     const [isMetroPlaying, setIsMetroPlaying] = useState(false);
