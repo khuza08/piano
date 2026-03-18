@@ -9,10 +9,10 @@ export const useAudio = () => {
     const samplerRef = useRef<Tone.Sampler | null>(null);
     const synthRef = useRef<Tone.PolySynth | null>(null);
     const metroRef = useRef<Tone.Sampler | null>(null);
+    const chorusRef = useRef<Tone.Chorus | null>(null);
+    const reverbRef = useRef<Tone.Reverb | null>(null);
     const eqRef = useRef<Tone.EQ3 | null>(null);
     const compressorRef = useRef<Tone.Compressor | null>(null);
-    const reverbRef = useRef<Tone.Reverb | null>(null);
-    const limiterRef = useRef<Tone.Limiter | null>(null);
     
     const [isLoaded, setIsLoaded] = useState(false);
     const [isMetroLoaded, setIsMetroLoaded] = useState(false);
@@ -26,11 +26,29 @@ export const useAudio = () => {
     const sustainedNotes = useRef<Map<string, string>>(new Map());
 
     useEffect(() => {
-        const limiter = new Tone.Limiter(-1).toDestination();
-        const compressor = new Tone.Compressor({ threshold: -24, ratio: 4, attack: 0.01, release: 0.2 }).connect(limiter);
-        const eq = new Tone.EQ3({ low: 4, mid: -1, high: 2, lowFrequency: 450, highFrequency: 3000 }).connect(compressor);
-        const reverb = new Tone.Reverb({ decay: 1.5, wet: 0.1 }).connect(eq);
+        // 1. MASTER CHAIN (Last to First)
+        const compressor = new Tone.Compressor({ threshold: -20, ratio: 3 }).toDestination();
+        const eq = new Tone.EQ3({ low: 3, mid: 0, high: 1 }).connect(compressor);
 
+        // 2. FX BUSSES
+        // Reverb for depth
+        const reverb = new Tone.Reverb({
+            decay: 2.5,
+            preDelay: 0.01,
+            wet: 0.2
+        }).connect(eq);
+
+        // Chorus for width and movement
+        const chorus = new Tone.Chorus({
+            frequency: 1.5,
+            delayTime: 3.5,
+            depth: 0.7,
+            wet: 0.15 // Default wetness
+        }).connect(reverb);
+        chorus.start(); // Standard Tone.js requirement for Chorus
+
+        // 3. INSTRUMENTS
+        // Piano Sampler
         const sampler = new Tone.Sampler({
             urls: {
                 "A0": "A0.mp3", "A1": "A1.mp3", "A2": "A2.mp3", "A3": "A3.mp3", "A4": "A4.mp3", "A5": "A5.mp3", "A6": "A6.mp3", "A7": "A7.mp3",
@@ -41,8 +59,9 @@ export const useAudio = () => {
             baseUrl: "/notes/classic/",
             curve: "exponential", attack: 0.01, release: 1.2, sustain: 1, decay: 1,
             onload: () => setIsLoaded(true)
-        }).connect(reverb);
+        }).connect(chorus);
 
+        // Metronome
         const metronom = new Tone.Sampler({
             urls: { "C4": "metronome.wav" },
             baseUrl: "/notes/",
@@ -52,10 +71,10 @@ export const useAudio = () => {
 
         samplerRef.current = sampler;
         metroRef.current = metronom;
+        chorusRef.current = chorus;
+        reverbRef.current = reverb;
         eqRef.current = eq;
         compressorRef.current = compressor;
-        reverbRef.current = reverb;
-        limiterRef.current = limiter;
 
         const repeatId = Tone.Transport.scheduleRepeat((time) => {
             if (metronom.loaded) metronom.triggerAttackRelease("C4", "8n", time);
@@ -64,30 +83,31 @@ export const useAudio = () => {
         return () => {
             sampler.dispose();
             metronom.dispose();
+            chorus.dispose();
+            reverb.dispose();
             eq.dispose();
             compressor.dispose();
-            reverb.dispose();
-            limiter.dispose();
             synthRef.current?.dispose();
             Tone.Transport.clear(repeatId);
             Tone.Transport.stop();
         };
     }, []);
 
+    // Instrument Switcher
     useEffect(() => {
-        if (!eqRef.current) return;
+        if (!chorusRef.current) return;
         if (synthRef.current) synthRef.current.dispose();
 
         if (instrumentType === 'fat') {
             synthRef.current = new Tone.PolySynth(Tone.Synth, {
                 oscillator: { type: "fatsawtooth", count: 3, spread: 30 },
-                envelope: { attack: 0.01, decay: 0.5, sustain: 0.2, release: 2 } // Sustain 0.2 means it will drop volume
-            }).connect(eqRef.current);
+                envelope: { attack: 0.01, decay: 0.5, sustain: 0.2, release: 2 }
+            }).connect(chorusRef.current);
         } else if (instrumentType === 'metal') {
             synthRef.current = new Tone.PolySynth(Tone.MetalSynth, {
                 harmonicity: 12, resonance: 800, modulationIndex: 20,
                 envelope: { decay: 0.4, release: 0.5 }
-            }).connect(eqRef.current);
+            }).connect(chorusRef.current);
         }
     }, [instrumentType]);
 
@@ -108,9 +128,8 @@ export const useAudio = () => {
         if (instrumentType === 'classic' && isLoaded && samplerRef.current) {
             samplerRef.current.triggerAttack(transposedNote);
         } else if (synthRef.current) {
-            // FOR SYNTHS: If sustain is on, we play with a long duration but not "forever"
             if (sustain) {
-                synthRef.current.triggerAttackRelease(transposedNote, "2n"); // Play for 2 beats max
+                synthRef.current.triggerAttackRelease(transposedNote, "2n");
             } else {
                 synthRef.current.triggerAttack(transposedNote);
             }
