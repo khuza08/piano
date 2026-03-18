@@ -13,6 +13,7 @@ export const useAudio = () => {
     const reverbRef = useRef<Tone.Reverb | null>(null);
     const eqRef = useRef<Tone.EQ3 | null>(null);
     const compressorRef = useRef<Tone.Compressor | null>(null);
+    const pannerRef = useRef<Tone.Panner | null>(null);
     
     const [isLoaded, setIsLoaded] = useState(false);
     const [isMetroLoaded, setIsMetroLoaded] = useState(false);
@@ -26,29 +27,42 @@ export const useAudio = () => {
     const sustainedNotes = useRef<Map<string, string>>(new Map());
 
     useEffect(() => {
-        // 1. MASTER CHAIN (Last to First)
-        const compressor = new Tone.Compressor({ threshold: -20, ratio: 3 }).toDestination();
-        const eq = new Tone.EQ3({ low: 3, mid: 0, high: 1 }).connect(compressor);
+        // 1. MASTER CHAIN (Final Polishing)
+        const compressor = new Tone.Compressor({
+            threshold: -24,
+            ratio: 3,
+            attack: 0.05,
+            release: 0.1
+        }).toDestination();
 
-        // 2. FX BUSSES
-        // Reverb for depth
+        // Warm EQ Profile: Boosting the "Body" (Low-Mid)
+        const eq = new Tone.EQ3({
+            low: 4,      // Warmth
+            mid: 2,      // Body/Harmony
+            high: -2,    // Anti-Sharpness
+            lowFrequency: 400,
+            highFrequency: 2500
+        }).connect(compressor);
+
+        // 2. STEREO WIDENER (For "Harmony" feel)
+        const panner = new Tone.Panner(0).connect(eq);
+
+        // 3. FX BUSSES
         const reverb = new Tone.Reverb({
-            decay: 2.5,
-            preDelay: 0.01,
-            wet: 0.2
-        }).connect(eq);
+            decay: 2.2,
+            preDelay: 0.02,
+            wet: 0.15
+        }).connect(panner);
 
-        // Chorus for width and movement
         const chorus = new Tone.Chorus({
-            frequency: 1.5,
-            delayTime: 3.5,
-            depth: 0.7,
-            wet: 0.15 // Default wetness
+            frequency: 1.2,
+            delayTime: 3,
+            depth: 0.5,
+            wet: 0.1
         }).connect(reverb);
-        chorus.start(); // Standard Tone.js requirement for Chorus
+        chorus.start();
 
-        // 3. INSTRUMENTS
-        // Piano Sampler
+        // 4. PIANO SAMPLER (Tweaked for Warmth)
         const sampler = new Tone.Sampler({
             urls: {
                 "A0": "A0.mp3", "A1": "A1.mp3", "A2": "A2.mp3", "A3": "A3.mp3", "A4": "A4.mp3", "A5": "A5.mp3", "A6": "A6.mp3", "A7": "A7.mp3",
@@ -57,11 +71,14 @@ export const useAudio = () => {
                 "F#1": "Fs1.mp3", "F#2": "Fs2.mp3", "F#3": "Fs3.mp3", "F#4": "Fs4.mp3", "F#5": "Fs5.mp3", "F#6": "Fs6.mp3", "F#7": "Fs7.mp3"
             },
             baseUrl: "/notes/classic/",
-            curve: "exponential", attack: 0.01, release: 1.2, sustain: 1, decay: 1,
+            curve: "exponential",
+            attack: 0.02,  // Softer start to remove sharpness
+            release: 1.5,
+            sustain: 1,
+            decay: 1,
             onload: () => setIsLoaded(true)
         }).connect(chorus);
 
-        // Metronome
         const metronom = new Tone.Sampler({
             urls: { "C4": "metronome.wav" },
             baseUrl: "/notes/",
@@ -75,6 +92,7 @@ export const useAudio = () => {
         reverbRef.current = reverb;
         eqRef.current = eq;
         compressorRef.current = compressor;
+        pannerRef.current = panner;
 
         const repeatId = Tone.Transport.scheduleRepeat((time) => {
             if (metronom.loaded) metronom.triggerAttackRelease("C4", "8n", time);
@@ -87,6 +105,7 @@ export const useAudio = () => {
             reverb.dispose();
             eq.dispose();
             compressor.dispose();
+            panner.dispose();
             synthRef.current?.dispose();
             Tone.Transport.clear(repeatId);
             Tone.Transport.stop();
@@ -101,7 +120,7 @@ export const useAudio = () => {
         if (instrumentType === 'fat') {
             synthRef.current = new Tone.PolySynth(Tone.Synth, {
                 oscillator: { type: "fatsawtooth", count: 3, spread: 30 },
-                envelope: { attack: 0.01, decay: 0.5, sustain: 0.2, release: 2 }
+                envelope: { attack: 0.05, decay: 0.5, sustain: 0.3, release: 2 }
             }).connect(chorusRef.current);
         } else if (instrumentType === 'metal') {
             synthRef.current = new Tone.PolySynth(Tone.MetalSynth, {
@@ -124,6 +143,12 @@ export const useAudio = () => {
         if (Tone.getContext().state !== 'running') await Tone.start();
         const transposedNote = Tone.Frequency(note).transpose(transpose).toNote();
         sustainedNotes.current.delete(note);
+
+        // Auto-Panning based on note pitch (Harmony feel)
+        // Bass notes left (-0.3), High notes right (+0.3)
+        const midi = Tone.Frequency(note).toMidi();
+        const panValue = ((midi - 60) / 40) * 0.4; // Range approx -0.4 to 0.4
+        if (pannerRef.current) pannerRef.current.pan.rampTo(panValue, 0.1);
 
         if (instrumentType === 'classic' && isLoaded && samplerRef.current) {
             samplerRef.current.triggerAttack(transposedNote);
