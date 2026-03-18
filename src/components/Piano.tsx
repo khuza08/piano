@@ -122,7 +122,7 @@ export const Piano = () => {
             <div className="flex items-center justify-between px-6 py-2 bg-black/40 border-b border-white/5 overflow-x-auto no-scrollbar">
                 <div className="flex items-center gap-4 flex-shrink-0">
                     <div className="flex items-center gap-3 pr-4 border-r border-white/10">
-                        <Waves className="w-3 h-3 text-[#B5B5B5]" />
+                        <Waves className="w-4 h-4 text-[#B5B5B5]" />
                         <select 
                             value={instrumentType}
                             onChange={(e) => setInstrumentType(e.target.value as InstrumentType)}
@@ -140,19 +140,19 @@ export const Piano = () => {
                             {isMetroPlaying ? <Square className="w-3 h-3 fill-current" /> : <Play className="w-3 h-3 fill-current" />}
                         </button>
                         <div className="flex items-center gap-3">
-                            <Timer className={`w-3 h-3 ${isMetroPlaying ? 'text-white animate-pulse' : 'text-[#595959]'}`} />
+                            <Timer className={`w-4 h-4 ${isMetroPlaying ? 'text-white animate-pulse' : 'text-[#595959]'}`} />
                             <div className="flex items-center gap-2 bg-white/5 px-2 py-0.5 rounded-md border border-white/5">
                                 <button onClick={() => setBpm(Math.max(40, bpm - 1))} className="text-[#B5B5B5] hover:text-white leading-none px-1">‹</button>
                                 <span className="text-[10px] font-black text-white w-7 text-center">{bpm}</span>
                                 <button onClick={() => setBpm(Math.min(240, bpm + 1))} className="text-[#B5B5B5] hover:text-white leading-none px-1">›</button>
                             </div>
-                            <span className="text-[7px] text-[#595959] font-black uppercase tracking-tighter">BPM</span>
+                            <span className="text-[10px] text-[#595959] font-black uppercase tracking-tighter">BPM</span>
                         </div>
                     </div>
 
                     {/* Transpose Control */}
                     <div className="flex items-center gap-3 pr-4 border-r border-white/10">
-                        <span className="text-[7px] text-[#595959] uppercase tracking-widest font-black">Key</span>
+                        <span className="text-[10px] text-[#595959] uppercase tracking-widest font-black">Key</span>
                         <div className="flex items-center gap-2 bg-white/5 px-2 py-0.5 rounded-md border border-white/5">
                             <button onClick={() => setTranspose(Math.max(-10, transpose - 1))} className="text-[#B5B5B5] hover:text-white px-1">‹</button>
                             <span className="text-[10px] font-black text-white w-4 text-center">{transpose > 0 ? `+${transpose}` : transpose}</span>
@@ -161,12 +161,12 @@ export const Piano = () => {
                     </div>
 
                     <button onClick={toggleSustain} className={`flex items-center gap-2 px-3 py-1 rounded-full border transition-all ${sustain ? 'bg-white/10 border-[#B5B5B5] text-white shadow-lg' : 'bg-transparent border-white/5 text-[#595959]'}`}>
-                        <Footprints className="w-3 h-3" /><span className="text-[8px] uppercase tracking-[0.2em] font-bold">Sustain</span>
+                        <Footprints className="w-4 h-4" /><span className="text-[8px] uppercase tracking-[0.2em] font-bold">Sustain</span>
                     </button>
                 </div>
 
                 <div className="flex items-center gap-4 w-32 ml-4">
-                    <Volume2 className="w-3 h-3 text-[#B5B5B5]" /><input type="range" min="-40" max="6" value={volume} onChange={(e) => setVolume(Number(e.target.value))} className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-[#B5B5B5]" />
+                    <Volume2 className="w-4 h-4 text-[#B5B5B5]" /><input type="range" min="-40" max="6" value={volume} onChange={(e) => setVolume(Number(e.target.value))} className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-[#B5B5B5]" />
                 </div>
             </div>
 
