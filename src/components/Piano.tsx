@@ -77,14 +77,44 @@ export const Piano = () => {
         const onKeyDown = (e: KeyboardEvent) => {
             if (e.repeat) return;
             if (e.code === 'Space') { e.preventDefault(); toggleSustain(); return; }
-            const note = CUSTOM_KEY_MAP[e.key];
+            
+            let key = e.key;
+
+            // 1. CapsLock proof: If Shift is NOT held, force lowercase
+            if (!e.shiftKey && key.length === 1 && /[a-zA-Z]/.test(key)) {
+                key = key.toLowerCase();
+            }
+
+            // 2. Shift Fallback: If shifted key not in map, use lowercase
+            if (e.shiftKey && !CUSTOM_KEY_MAP[key]) {
+                key = key.toLowerCase();
+            }
+
+            const note = CUSTOM_KEY_MAP[key];
             if (note) handlePlay(note);
         };
+
         const onKeyUp = (e: KeyboardEvent) => {
             if (e.code === 'Space') return;
-            const note = CUSTOM_KEY_MAP[e.key];
+            
+            let key = e.key;
+
+            // Apply same normalization on KeyUp
+            if (!e.shiftKey && key.length === 1 && /[a-zA-Z]/.test(key)) {
+                key = key.toLowerCase();
+            }
+
+            if (e.shiftKey && !CUSTOM_KEY_MAP[key]) {
+                key = key.toLowerCase();
+            } else if (!e.shiftKey && !CUSTOM_KEY_MAP[key]) {
+                const lowercaseKey = key.toLowerCase();
+                if (CUSTOM_KEY_MAP[lowercaseKey]) key = lowercaseKey;
+            }
+
+            const note = CUSTOM_KEY_MAP[key];
             if (note) handleStop(note);
         };
+
         window.addEventListener('keydown', onKeyDown);
         window.addEventListener('keyup', onKeyUp);
         return () => {
@@ -125,9 +155,13 @@ export const Piano = () => {
                     <div className="flex items-center gap-3 pr-4 border-r border-white/10">
                         <span className="text-[7px] text-[#595959] uppercase tracking-widest font-black">Key</span>
                         <div className="flex items-center gap-2">
-                            <button onClick={() => setTranspose(Math.max(-10, transpose - 1))} className="text-[#B5B5B5] hover:text-white">‹</button>
+                            <button onClick={() => setTranspose(Math.max(-10, transpose - 1))} className="text-[#B5B5B5] hover:text-white transition-colors">
+                                <ChevronLeft className="w-3 h-3" />
+                            </button>
                             <span className="text-[10px] font-black text-white w-4 text-center">{transpose > 0 ? `+${transpose}` : transpose}</span>
-                            <button onClick={() => setTranspose(Math.min(10, transpose + 1))} className="text-[#B5B5B5] hover:text-white">›</button>
+                            <button onClick={() => setTranspose(Math.min(10, transpose + 1))} className="text-[#B5B5B5] hover:text-white transition-colors">
+                                <ChevronRight className="w-3 h-3" />
+                            </button>
                         </div>
                     </div>
 
