@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAudio } from '../hooks/useAudio';
 import { PianoKey } from './PianoKey';
-import { Volume2, Music, Loader2, Footprints } from 'lucide-react';
+import { Volume2, Music, Loader2, Footprints, Trash2, History } from 'lucide-react';
 
 const WHITE_NOTES = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
 const BLACK_NOTES: Record<string, string> = { 'C': 'C#', 'D': 'D#', 'F': 'F#', 'G': 'G#', 'A': 'A#' };
@@ -46,11 +46,27 @@ blackKeys.forEach(k => { if (k.label) KEYBOARD_TO_NOTE[k.label] = { note: k.note
 export const Piano = () => {
     const { playNote, stopNote, volume, setVolume, isLoaded, sustain, toggleSustain } = useAudio();
     const [heldNotes, setHeldNotes] = useState<Set<string>>(new Set());
+    const [noteHistory, setNoteHistory] = useState<string[]>([]);
+    const historyEndRef = useRef<HTMLDivElement>(null);
+
+    const scrollToBottom = () => {
+        historyEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    };
+
+    useEffect(() => {
+        scrollToBottom();
+    }, [noteHistory]);
 
     const handlePlay = useCallback((noteName: string, octave: number) => {
         const fullNote = `${noteName}${octave}`;
         playNote(fullNote);
         setHeldNotes(prev => new Set(prev).add(fullNote));
+        
+        // Add to history
+        setNoteHistory(prev => {
+            const newHistory = [...prev, fullNote];
+            return newHistory.slice(-50); // Keep only last 50 notes
+        });
     }, [playNote]);
 
     const handleStop = useCallback((noteName: string, octave: number) => {
@@ -97,7 +113,6 @@ export const Piano = () => {
                         <span className="text-[10px] text-white uppercase tracking-[0.2em] font-black">Classic Grand Piano</span>
                     </div>
 
-                    {/* Sustain Pedal Toggle */}
                     <button 
                         onClick={toggleSustain}
                         className={`
@@ -111,7 +126,6 @@ export const Piano = () => {
                         <span className="text-[8px] uppercase tracking-[0.2em] font-bold">
                             Sustain {sustain ? 'ON' : 'OFF'}
                         </span>
-                        <span className="text-[7px] opacity-40 ml-1">(SPACE)</span>
                     </button>
                 </div>
 
@@ -123,6 +137,39 @@ export const Piano = () => {
                         className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-[#B5B5B5]"
                     />
                 </div>
+            </div>
+
+            {/* Note History Display */}
+            <div className="bg-black/20 h-12 border-b border-white/5 flex items-center px-6 justify-between overflow-hidden">
+                <div className="flex items-center gap-3 overflow-x-auto no-scrollbar py-2 flex-1 scroll-smooth">
+                    <History className="w-3 h-3 text-[#595959] flex-shrink-0" />
+                    {noteHistory.length === 0 ? (
+                        <span className="text-[8px] text-[#595959] uppercase tracking-[0.3em] font-bold italic">Start playing to see notes...</span>
+                    ) : (
+                        noteHistory.map((note, idx) => (
+                            <span 
+                                key={idx} 
+                                className={`
+                                    text-[10px] font-black tracking-tighter transition-all duration-300 flex-shrink-0
+                                    ${idx === noteHistory.length - 1 ? 'text-white scale-125 mx-2 drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]' : 'text-[#595959]'}
+                                `}
+                            >
+                                {note}
+                            </span>
+                        ))
+                    )}
+                    <div ref={historyEndRef} />
+                </div>
+                
+                {noteHistory.length > 0 && (
+                    <button 
+                        onClick={() => setNoteHistory([])}
+                        className="ml-4 p-2 text-[#595959] hover:text-white transition-colors"
+                        title="Clear History"
+                    >
+                        <Trash2 className="w-3 h-3" />
+                    </button>
+                )}
             </div>
 
             {/* PIANO BOARD */}
@@ -168,6 +215,16 @@ export const Piano = () => {
                     })}
                 </div>
             </div>
+
+            <style jsx>{`
+                .no-scrollbar::-webkit-scrollbar {
+                    display: none;
+                }
+                .no-scrollbar {
+                    -ms-overflow-style: none;
+                    scrollbar-width: none;
+                }
+            `}</style>
         </div>
     );
 };
