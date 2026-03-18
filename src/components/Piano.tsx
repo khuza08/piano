@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useAudio, InstrumentType } from '../hooks/useAudio';
+import { useAudio } from '../hooks/useAudio';
 import { PianoKey } from './PianoKey';
-import { Volume2, Music } from 'lucide-react';
+import { Volume2, Music, Loader2 } from 'lucide-react';
 
 const WHITE_NOTES = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
 const BLACK_NOTES: Record<string, string> = { 'C': 'C#', 'D': 'D#', 'F': 'F#', 'G': 'G#', 'A': 'A#' };
@@ -44,7 +44,7 @@ whiteKeys.forEach(k => { if (k.label) KEYBOARD_TO_NOTE[k.label] = { note: k.note
 blackKeys.forEach(k => { if (k.label) KEYBOARD_TO_NOTE[k.label] = { note: k.note, octave: k.octave }; });
 
 export const Piano = () => {
-    const { playNote, stopNote, volume, setVolume, instrument, updateInstrument } = useAudio();
+    const { playNote, stopNote, volume, setVolume, isLoaded } = useAudio();
     const [activeNotes, setActiveNotes] = useState<Set<string>>(new Set());
 
     const handlePlay = useCallback((noteName: string, octave: number) => {
@@ -83,20 +83,14 @@ export const Piano = () => {
 
     return (
         <div className="flex flex-col w-full h-full overflow-hidden">
-            {/* Headr */}
+            {/* Header Controls */}
             <div className="flex items-center justify-between px-6 py-2 bg-black/40 border-b border-white/5">
-                <div className="flex items-center gap-4">
-                    <Music className="w-3 h-3 text-[#B5B5B5]" />
-                    <select 
-                        value={instrument}
-                        onChange={(e) => updateInstrument(e.target.value as InstrumentType)}
-                        className="bg-transparent text-[8px] focus:outline-none text-white cursor-pointer uppercase tracking-[0.2em] font-black"
-                    >
-                        <option value="synth">Classic</option>
-                        <option value="am">AM Synth</option>
-                        <option value="fm">FM Synth</option>
-                        <option value="duo">Duo</option>
-                    </select>
+                <div className="flex items-center gap-6">
+                    <div className="flex items-center gap-3">
+                        <Music className="w-3 h-3 text-[#B5B5B5]" />
+                        <span className="text-[10px] text-white uppercase tracking-[0.2em] font-black">Classic Grand Piano</span>
+                        {!isLoaded && <Loader2 className="w-3 h-3 text-white animate-spin" />}
+                    </div>
                 </div>
                 <div className="flex items-center gap-4 w-32">
                     <Volume2 className="w-3 h-3 text-[#B5B5B5]" />
@@ -108,10 +102,17 @@ export const Piano = () => {
                 </div>
             </div>
 
-            {/* Board */}
-            <div className="relative flex-1 w-full bg-[#111111] flex flex-col p-2">
+            {/* FULL SCREEN WIDTH PIANO */}
+            <div className="relative flex-1 w-full bg-[#111111] flex flex-col p-2 relative">
+                {!isLoaded && (
+                    <div className="absolute inset-0 bg-black/60 z-50 flex flex-col items-center justify-center backdrop-blur-sm">
+                        <Loader2 className="w-8 h-8 text-[#B5B5B5] animate-spin mb-4" />
+                        <span className="text-[10px] text-[#B5B5B5] uppercase tracking-[0.4em] font-bold">Loading Samples...</span>
+                    </div>
+                )}
+                
                 <div className="relative w-full h-full flex items-start">
-                    {/* whiteKeys) */}
+                    {/* Render White Keys (Flex) */}
                     {whiteKeys.map((k) => {
                         const fullNote = `${k.note}${k.octave}`;
                         return (
@@ -126,7 +127,7 @@ export const Piano = () => {
                         );
                     })}
 
-                    {/* blackKeys */}
+                    {/* Render Black Keys (Absolute) */}
                     {blackKeys.map((k) => {
                         const fullNote = `${k.note}${k.octave}`;
                         return (
