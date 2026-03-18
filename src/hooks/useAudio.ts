@@ -24,8 +24,8 @@ export const useAudio = () => {
     const [isMetroPlaying, setIsMetroPlaying] = useState(false);
     const [instrumentType, setInstrumentType] = useState<InstrumentType>('classic');
     
-    // Add GitHub Pages base path
-    const BASE_PATH = "/piano";
+    // Dynamic base path for GitHub Pages and Local Dev
+    const BASE_PATH = process.env.NODE_ENV === "production" ? "/piano" : "";
     
     // THE BASE OFFSET: 0 means -9
     const BASE_TRANSPOSE = -9;
