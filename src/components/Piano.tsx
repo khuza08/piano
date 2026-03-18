@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAudio } from '../hooks/useAudio';
 import { PianoKey } from './PianoKey';
-import { Volume2, Music, Loader2 } from 'lucide-react';
+import { Volume2, Music, Loader2, Footprints } from 'lucide-react';
 
 const WHITE_NOTES = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
 const BLACK_NOTES: Record<string, string> = { 'C': 'C#', 'D': 'D#', 'F': 'F#', 'G': 'G#', 'A': 'A#' };
@@ -44,19 +44,19 @@ whiteKeys.forEach(k => { if (k.label) KEYBOARD_TO_NOTE[k.label] = { note: k.note
 blackKeys.forEach(k => { if (k.label) KEYBOARD_TO_NOTE[k.label] = { note: k.note, octave: k.octave }; });
 
 export const Piano = () => {
-    const { playNote, stopNote, volume, setVolume, isLoaded } = useAudio();
-    const [activeNotes, setActiveNotes] = useState<Set<string>>(new Set());
+    const { playNote, stopNote, volume, setVolume, isLoaded, sustain, toggleSustain } = useAudio();
+    const [heldNotes, setHeldNotes] = useState<Set<string>>(new Set());
 
     const handlePlay = useCallback((noteName: string, octave: number) => {
         const fullNote = `${noteName}${octave}`;
         playNote(fullNote);
-        setActiveNotes(prev => new Set(prev).add(fullNote));
+        setHeldNotes(prev => new Set(prev).add(fullNote));
     }, [playNote]);
 
     const handleStop = useCallback((noteName: string, octave: number) => {
         const fullNote = `${noteName}${octave}`;
         stopNote(fullNote);
-        setActiveNotes(prev => {
+        setHeldNotes(prev => {
             const next = new Set(prev);
             next.delete(fullNote);
             return next;
@@ -66,10 +66,16 @@ export const Piano = () => {
     useEffect(() => {
         const onKeyDown = (e: KeyboardEvent) => {
             if (e.repeat) return;
+            if (e.code === 'Space') {
+                e.preventDefault();
+                toggleSustain();
+                return;
+            }
             const data = KEYBOARD_TO_NOTE[e.key];
             if (data) handlePlay(data.note, data.octave);
         };
         const onKeyUp = (e: KeyboardEvent) => {
+            if (e.code === 'Space') return;
             const data = KEYBOARD_TO_NOTE[e.key];
             if (data) handleStop(data.note, data.octave);
         };
@@ -79,7 +85,7 @@ export const Piano = () => {
             window.removeEventListener('keydown', onKeyDown);
             window.removeEventListener('keyup', onKeyUp);
         };
-    }, [handlePlay, handleStop]);
+    }, [handlePlay, handleStop, toggleSustain]);
 
     return (
         <div className="flex flex-col w-full h-full overflow-hidden">
@@ -89,9 +95,26 @@ export const Piano = () => {
                     <div className="flex items-center gap-3">
                         <Music className="w-3 h-3 text-[#B5B5B5]" />
                         <span className="text-[10px] text-white uppercase tracking-[0.2em] font-black">Classic Grand Piano</span>
-                        {!isLoaded && <Loader2 className="w-3 h-3 text-white animate-spin" />}
                     </div>
+
+                    {/* Sustain Pedal Toggle */}
+                    <button 
+                        onClick={toggleSustain}
+                        className={`
+                            flex items-center gap-2 px-3 py-1 rounded-full border transition-all duration-300
+                            ${sustain 
+                                ? 'bg-white/10 border-[#B5B5B5] text-white shadow-[0_0_15px_rgba(255,255,255,0.1)]' 
+                                : 'bg-transparent border-white/5 text-[#595959] grayscale'}
+                        `}
+                    >
+                        <Footprints className={`w-3 h-3 ${sustain ? 'text-[#B5B5B5]' : ''}`} />
+                        <span className="text-[8px] uppercase tracking-[0.2em] font-bold">
+                            Sustain {sustain ? 'ON' : 'OFF'}
+                        </span>
+                        <span className="text-[7px] opacity-40 ml-1">(SPACE)</span>
+                    </button>
                 </div>
+
                 <div className="flex items-center gap-4 w-32">
                     <Volume2 className="w-3 h-3 text-[#B5B5B5]" />
                     <input 
@@ -102,8 +125,8 @@ export const Piano = () => {
                 </div>
             </div>
 
-            {/* FULL SCREEN WIDTH PIANO */}
-            <div className="relative flex-1 w-full bg-[#111111] flex flex-col p-2 relative">
+            {/* PIANO BOARD */}
+            <div className="relative flex-1 w-full bg-[#111111] flex flex-col p-2">
                 {!isLoaded && (
                     <div className="absolute inset-0 bg-black/60 z-50 flex flex-col items-center justify-center backdrop-blur-sm">
                         <Loader2 className="w-8 h-8 text-[#B5B5B5] animate-spin mb-4" />
@@ -119,7 +142,7 @@ export const Piano = () => {
                             <PianoKey
                                 key={fullNote}
                                 note={k.note}
-                                active={activeNotes.has(fullNote)}
+                                active={heldNotes.has(fullNote)}
                                 onPlay={() => handlePlay(k.note, k.octave)}
                                 onStop={() => handleStop(k.note, k.octave)}
                                 label={k.label}
@@ -135,7 +158,7 @@ export const Piano = () => {
                                 <PianoKey
                                     note={k.note}
                                     isBlack
-                                    active={activeNotes.has(fullNote)}
+                                    active={heldNotes.has(fullNote)}
                                     onPlay={() => handlePlay(k.note, k.octave)}
                                     onStop={() => handleStop(k.note, k.octave)}
                                     label={k.label}

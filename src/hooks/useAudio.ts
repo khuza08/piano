@@ -7,9 +7,10 @@ export const useAudio = () => {
     const samplerRef = useRef<Tone.Sampler | null>(null);
     const [isLoaded, setIsLoaded] = useState(false);
     const [volume, setVolume] = useState(-12); // Decibels
+    const [sustain, setSustain] = useState(false);
+    const sustainedNotes = useRef<Set<string>>(new Set());
 
     useEffect(() => {
-        // Initialize Sampler for high-quality piano sound
         const sampler = new Tone.Sampler({
             urls: {
                 A0: "A0.mp3", A1: "A1.mp3", A2: "A2.mp3", A3: "A3.mp3", A4: "A4.mp3", A5: "A5.mp3", A6: "A6.mp3", A7: "A7.mp3",
@@ -36,17 +37,38 @@ export const useAudio = () => {
         }
     }, [volume]);
 
+    // Handle releasing sustained notes when sustain is turned off
+    useEffect(() => {
+        if (!sustain && samplerRef.current) {
+            sustainedNotes.current.forEach(note => {
+                samplerRef.current?.triggerRelease(note);
+            });
+            sustainedNotes.current.clear();
+        }
+    }, [sustain]);
+
     const playNote = useCallback(async (note: string) => {
         if (Tone.getContext().state !== 'running') {
             await Tone.start();
         }
         if (isLoaded) {
+            // If the note was already being sustained, clear it
+            sustainedNotes.current.delete(note);
             samplerRef.current?.triggerAttack(note);
         }
     }, [isLoaded]);
 
     const stopNote = useCallback((note: string) => {
-        samplerRef.current?.triggerRelease(note);
+        if (sustain) {
+            // Keep track of which notes are currently being sustained
+            sustainedNotes.current.add(note);
+        } else {
+            samplerRef.current?.triggerRelease(note);
+        }
+    }, [sustain]);
+
+    const toggleSustain = useCallback(() => {
+        setSustain(prev => !prev);
     }, []);
 
     return {
@@ -54,6 +76,8 @@ export const useAudio = () => {
         stopNote,
         isLoaded,
         volume,
-        setVolume
+        setVolume,
+        sustain,
+        toggleSustain
     };
 };
