@@ -7,7 +7,7 @@ export type InstrumentType = 'classic' | 'fat' | 'metal';
 
 export const useAudio = () => {
     const samplerRef = useRef<Tone.Sampler | null>(null);
-    const synthRef = useRef<Tone.PolySynth | null>(null);
+    const synthRef = useRef<Tone.PolySynth<any> | null>(null);
     const metroRef = useRef<Tone.Sampler | null>(null);
     const chorusRef = useRef<Tone.Chorus | null>(null);
     const reverbRef = useRef<Tone.Reverb | null>(null);
@@ -45,7 +45,7 @@ export const useAudio = () => {
                 "F#1": "Fs1.mp3", "F#2": "Fs2.mp3", "F#3": "Fs3.mp3", "F#4": "Fs4.mp3", "F#5": "Fs5.mp3", "F#6": "Fs6.mp3", "F#7": "Fs7.mp3"
             },
             baseUrl: "/notes/classic/",
-            curve: "exponential", attack: 0.02, release: 1.5, sustain: 1, decay: 1,
+            curve: "exponential", attack: 0.02, release: 1.5,
             onload: () => setIsLoaded(true)
         }).connect(chorus);
 
