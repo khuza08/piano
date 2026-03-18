@@ -20,7 +20,7 @@ export default function Home() {
             </p>
           </div>
           <div className="text-[#595959] text-[8px] tracking-[0.2em] uppercase font-bold hidden sm:block">
-            61 Keys • Professional Layout
+            61 Keys • Compact Layout
           </div>
         </div>
 
@@ -35,7 +35,7 @@ export default function Home() {
             Standard QWERTY Mapping (1-M)
           </div>
           <div className="text-[#B5B5B5]/30 text-[7px] tracking-[0.2em] uppercase font-bold">
-            80% Viewport
+            COOL ISNT IT?
           </div>
         </div>
       </div>
