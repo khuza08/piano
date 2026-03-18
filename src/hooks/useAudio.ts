@@ -24,6 +24,9 @@ export const useAudio = () => {
     const [isMetroPlaying, setIsMetroPlaying] = useState(false);
     const [instrumentType, setInstrumentType] = useState<InstrumentType>('classic');
     
+    // Add GitHub Pages base path
+    const BASE_PATH = "/piano";
+    
     // THE BASE OFFSET: 0 means -9
     const BASE_TRANSPOSE = -9;
 
@@ -44,14 +47,14 @@ export const useAudio = () => {
                 "D#1": "Ds1.mp3", "D#2": "Ds2.mp3", "D#3": "Ds3.mp3", "D#4": "Ds4.mp3", "D#5": "Ds5.mp3", "D#6": "Ds6.mp3", "D#7": "Ds7.mp3",
                 "F#1": "Fs1.mp3", "F#2": "Fs2.mp3", "F#3": "Fs3.mp3", "F#4": "Fs4.mp3", "F#5": "Fs5.mp3", "F#6": "Fs6.mp3", "F#7": "Fs7.mp3"
             },
-            baseUrl: "/notes/classic/",
+            baseUrl: `${BASE_PATH}/notes/classic/`,
             curve: "exponential", attack: 0.02, release: 1.5,
             onload: () => setIsLoaded(true)
         }).connect(chorus);
 
         const metronom = new Tone.Sampler({
             urls: { "C4": "metronome.wav" },
-            baseUrl: "/notes/",
+            baseUrl: `${BASE_PATH}/notes/`,
             onload: () => setIsMetroLoaded(true)
         }).toDestination();
         metronom.volume.value = -10;
