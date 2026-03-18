@@ -79,13 +79,9 @@ export const Piano = () => {
             if (e.code === 'Space') { e.preventDefault(); toggleSustain(); return; }
             
             let key = e.key;
-
-            // 1. CapsLock proof: If Shift is NOT held, force lowercase
             if (!e.shiftKey && key.length === 1 && /[a-zA-Z]/.test(key)) {
                 key = key.toLowerCase();
             }
-
-            // 2. Shift Fallback: If shifted key not in map, use lowercase
             if (e.shiftKey && !CUSTOM_KEY_MAP[key]) {
                 key = key.toLowerCase();
             }
@@ -98,12 +94,9 @@ export const Piano = () => {
             if (e.code === 'Space') return;
             
             let key = e.key;
-
-            // Apply same normalization on KeyUp
             if (!e.shiftKey && key.length === 1 && /[a-zA-Z]/.test(key)) {
                 key = key.toLowerCase();
             }
-
             if (e.shiftKey && !CUSTOM_KEY_MAP[key]) {
                 key = key.toLowerCase();
             } else if (!e.shiftKey && !CUSTOM_KEY_MAP[key]) {
@@ -141,27 +134,29 @@ export const Piano = () => {
                         </select>
                     </div>
 
+                    {/* Metronome Control with Arrows */}
                     <div className="flex items-center gap-3 pr-4 border-r border-white/10">
                         <button onClick={toggleMetronome} className={`p-1.5 rounded-md transition-all ${isMetroPlaying ? 'bg-white/20 text-white' : 'text-[#595959]'}`}>
                             {isMetroPlaying ? <Square className="w-3 h-3 fill-current" /> : <Play className="w-3 h-3 fill-current" />}
                         </button>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-3">
                             <Timer className={`w-3 h-3 ${isMetroPlaying ? 'text-white animate-pulse' : 'text-[#595959]'}`} />
-                            <input type="number" value={bpm} onChange={(e) => setBpm(Math.min(240, Math.max(40, parseInt(e.target.value) || 0)))} className="bg-transparent text-[10px] text-white w-8 focus:outline-none font-black" />
-                            <span className="text-[7px] text-[#595959] font-black">BPM</span>
+                            <div className="flex items-center gap-2 bg-white/5 px-2 py-0.5 rounded-md border border-white/5">
+                                <button onClick={() => setBpm(Math.max(40, bpm - 1))} className="text-[#B5B5B5] hover:text-white leading-none px-1">‹</button>
+                                <span className="text-[10px] font-black text-white w-7 text-center">{bpm}</span>
+                                <button onClick={() => setBpm(Math.min(240, bpm + 1))} className="text-[#B5B5B5] hover:text-white leading-none px-1">›</button>
+                            </div>
+                            <span className="text-[7px] text-[#595959] font-black uppercase tracking-tighter">BPM</span>
                         </div>
                     </div>
 
+                    {/* Transpose Control */}
                     <div className="flex items-center gap-3 pr-4 border-r border-white/10">
                         <span className="text-[7px] text-[#595959] uppercase tracking-widest font-black">Key</span>
-                        <div className="flex items-center gap-2">
-                            <button onClick={() => setTranspose(Math.max(-10, transpose - 1))} className="text-[#B5B5B5] hover:text-white transition-colors">
-                                <ChevronLeft className="w-3 h-3" />
-                            </button>
+                        <div className="flex items-center gap-2 bg-white/5 px-2 py-0.5 rounded-md border border-white/5">
+                            <button onClick={() => setTranspose(Math.max(-10, transpose - 1))} className="text-[#B5B5B5] hover:text-white px-1">‹</button>
                             <span className="text-[10px] font-black text-white w-4 text-center">{transpose > 0 ? `+${transpose}` : transpose}</span>
-                            <button onClick={() => setTranspose(Math.min(10, transpose + 1))} className="text-[#B5B5B5] hover:text-white transition-colors">
-                                <ChevronRight className="w-3 h-3" />
-                            </button>
+                            <button onClick={() => setTranspose(Math.min(10, transpose + 1))} className="text-[#B5B5B5] hover:text-white px-1">›</button>
                         </div>
                     </div>
 

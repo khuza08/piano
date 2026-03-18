@@ -13,10 +13,10 @@ export default function Home() {
         <div className="px-6 py-4 flex justify-between items-center border-b border-white/5 bg-gradient-to-b from-[#303030] to-[#1a1a1a]">
           <div>
             <h1 className="text-2xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-white to-[#B5B5B5] leading-none">
-              VIRTUAL PIANO <span className="text-[8px] font-light text-[#B5B5B5]/50 align-top ml-1">V2</span>
+              VIRTUAL PIANO
             </h1>
             <p className="text-[#B5B5B5] font-medium tracking-[0.4em] text-[7px] uppercase mt-1">
-              Monochrome Industrial
+              Mono Industrial
             </p>
           </div>
           <div className="text-[#595959] text-[8px] tracking-[0.2em] uppercase font-bold hidden sm:block">
@@ -35,7 +35,7 @@ export default function Home() {
             Standard QWERTY Mapping (1-M)
           </div>
           <div className="text-[#B5B5B5]/30 text-[7px] tracking-[0.2em] uppercase font-bold">
-            80% Viewport Mode
+            80% Viewport
           </div>
         </div>
       </div>
