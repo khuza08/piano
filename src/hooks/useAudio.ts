@@ -3,8 +3,12 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import * as Tone from 'tone';
 
+export type InstrumentType = 'classic' | 'fat' | 'metal';
+
 export const useAudio = () => {
     const samplerRef = useRef<Tone.Sampler | null>(null);
+    const synthRef = useRef<Tone.PolySynth | null>(null);
+    const metroRef = useRef<Tone.Sampler | null>(null);
     const eqRef = useRef<Tone.EQ3 | null>(null);
     const compressorRef = useRef<Tone.Compressor | null>(null);
     const reverbRef = useRef<Tone.Reverb | null>(null);
@@ -17,37 +21,16 @@ export const useAudio = () => {
     const [transpose, setTranspose] = useState(0);
     const [bpm, setBpm] = useState(120);
     const [isMetroPlaying, setIsMetroPlaying] = useState(false);
+    const [instrumentType, setInstrumentType] = useState<InstrumentType>('classic');
     
     const sustainedNotes = useRef<Map<string, string>>(new Map());
 
     useEffect(() => {
-        // 1. LIMITER: Final stage to prevent clipping/harsh distortion
         const limiter = new Tone.Limiter(-1).toDestination();
+        const compressor = new Tone.Compressor({ threshold: -24, ratio: 4, attack: 0.01, release: 0.2 }).connect(limiter);
+        const eq = new Tone.EQ3({ low: 4, mid: -1, high: 2, lowFrequency: 450, highFrequency: 3000 }).connect(compressor);
+        const reverb = new Tone.Reverb({ decay: 1.5, wet: 0.1 }).connect(eq);
 
-        // 2. COMPRESSOR: Glue the sound together
-        const compressor = new Tone.Compressor({
-            threshold: -24,
-            ratio: 4,
-            attack: 0.01, // Quick attack to catch the "plucky" spikes
-            release: 0.2
-        }).connect(limiter);
-
-        // 3. EQ: The magic for "Bassy but Crisp"
-        const eq = new Tone.EQ3({
-            low: 4,      // Solid bass
-            mid: -1,     // Slightly scooped for clarity
-            high: 2,     // BOOST highs instead of cutting them to remove "mellow" feel
-            lowFrequency: 450,
-            highFrequency: 3000
-        }).connect(compressor);
-
-        // 4. REVERB: For air and space
-        const reverb = new Tone.Reverb({
-            decay: 1.5,
-            wet: 0.1
-        }).connect(eq);
-
-        // 5. PIANO SAMPLER
         const sampler = new Tone.Sampler({
             urls: {
                 "A0": "A0.mp3", "A1": "A1.mp3", "A2": "A2.mp3", "A3": "A3.mp3", "A4": "A4.mp3", "A5": "A5.mp3", "A6": "A6.mp3", "A7": "A7.mp3",
@@ -56,11 +39,7 @@ export const useAudio = () => {
                 "F#1": "Fs1.mp3", "F#2": "Fs2.mp3", "F#3": "Fs3.mp3", "F#4": "Fs4.mp3", "F#5": "Fs5.mp3", "F#6": "Fs6.mp3", "F#7": "Fs7.mp3"
             },
             baseUrl: "/notes/classic/",
-            curve: "exponential",
-            attack: 0.01,  // Slight attack to remove the "clicky" transient
-            release: 1.2,
-            sustain: 1,
-            decay: 1,
+            curve: "exponential", attack: 0.01, release: 1.2, sustain: 1, decay: 1,
             onload: () => setIsLoaded(true)
         }).connect(reverb);
 
@@ -72,6 +51,7 @@ export const useAudio = () => {
         metronom.volume.value = -10;
 
         samplerRef.current = sampler;
+        metroRef.current = metronom;
         eqRef.current = eq;
         compressorRef.current = compressor;
         reverbRef.current = reverb;
@@ -88,18 +68,77 @@ export const useAudio = () => {
             compressor.dispose();
             reverb.dispose();
             limiter.dispose();
+            synthRef.current?.dispose();
             Tone.Transport.clear(repeatId);
             Tone.Transport.stop();
         };
     }, []);
 
     useEffect(() => {
+        if (!eqRef.current) return;
+        if (synthRef.current) synthRef.current.dispose();
+
+        if (instrumentType === 'fat') {
+            synthRef.current = new Tone.PolySynth(Tone.Synth, {
+                oscillator: { type: "fatsawtooth", count: 3, spread: 30 },
+                envelope: { attack: 0.01, decay: 0.5, sustain: 0.2, release: 2 } // Sustain 0.2 means it will drop volume
+            }).connect(eqRef.current);
+        } else if (instrumentType === 'metal') {
+            synthRef.current = new Tone.PolySynth(Tone.MetalSynth, {
+                harmonicity: 12, resonance: 800, modulationIndex: 20,
+                envelope: { decay: 0.4, release: 0.5 }
+            }).connect(eqRef.current);
+        }
+    }, [instrumentType]);
+
+    useEffect(() => {
         if (samplerRef.current) samplerRef.current.volume.value = volume;
+        if (synthRef.current) synthRef.current.volume.value = volume;
     }, [volume]);
 
     useEffect(() => {
         Tone.Transport.bpm.value = bpm;
     }, [bpm]);
+
+    const playNote = useCallback(async (note: string) => {
+        if (Tone.getContext().state !== 'running') await Tone.start();
+        const transposedNote = Tone.Frequency(note).transpose(transpose).toNote();
+        sustainedNotes.current.delete(note);
+
+        if (instrumentType === 'classic' && isLoaded && samplerRef.current) {
+            samplerRef.current.triggerAttack(transposedNote);
+        } else if (synthRef.current) {
+            // FOR SYNTHS: If sustain is on, we play with a long duration but not "forever"
+            if (sustain) {
+                synthRef.current.triggerAttackRelease(transposedNote, "2n"); // Play for 2 beats max
+            } else {
+                synthRef.current.triggerAttack(transposedNote);
+            }
+        }
+    }, [isLoaded, transpose, instrumentType, sustain]);
+
+    const stopNote = useCallback((note: string) => {
+        const transposedNote = Tone.Frequency(note).transpose(transpose).toNote();
+        if (sustain) {
+            sustainedNotes.current.set(note, transposedNote);
+        } else {
+            if (instrumentType === 'classic' && samplerRef.current) {
+                samplerRef.current.triggerRelease(transposedNote);
+            } else if (synthRef.current) {
+                synthRef.current.triggerRelease(transposedNote);
+            }
+        }
+    }, [sustain, transpose, instrumentType]);
+
+    useEffect(() => {
+        if (!sustain) {
+            sustainedNotes.current.forEach((transposedNote) => {
+                samplerRef.current?.triggerRelease(transposedNote);
+                synthRef.current?.triggerRelease(transposedNote);
+            });
+            sustainedNotes.current.clear();
+        }
+    }, [sustain]);
 
     const toggleMetronome = useCallback(async () => {
         if (Tone.getContext().state !== 'running') await Tone.start();
@@ -107,27 +146,10 @@ export const useAudio = () => {
         setIsMetroPlaying(!isMetroPlaying);
     }, [isMetroPlaying]);
 
-    const playNote = useCallback(async (note: string) => {
-        if (Tone.getContext().state !== 'running') await Tone.start();
-        if (isLoaded && samplerRef.current) {
-            const transposedNote = Tone.Frequency(note).transpose(transpose).toNote();
-            sustainedNotes.current.delete(note);
-            samplerRef.current.triggerAttack(transposedNote);
-        }
-    }, [isLoaded, transpose]);
-
-    const stopNote = useCallback((note: string) => {
-        const transposedNote = Tone.Frequency(note).transpose(transpose).toNote();
-        if (sustain) {
-            sustainedNotes.current.set(note, transposedNote);
-        } else if (samplerRef.current) {
-            samplerRef.current.triggerRelease(transposedNote);
-        }
-    }, [sustain, transpose]);
-
     return {
         playNote, stopNote, isLoaded: isLoaded && isMetroLoaded, volume, setVolume,
         sustain, toggleSustain: () => setSustain(!sustain),
-        transpose, setTranspose, bpm, setBpm, isMetroPlaying, toggleMetronome
+        transpose, setTranspose, bpm, setBpm, isMetroPlaying, toggleMetronome,
+        instrumentType, setInstrumentType
     };
 };

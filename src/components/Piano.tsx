@@ -1,11 +1,10 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useAudio } from '../hooks/useAudio';
+import { useAudio, InstrumentType } from '../hooks/useAudio';
 import { PianoKey } from './PianoKey';
-import { Volume2, Music, Loader2, Footprints, Trash2, History, ChevronLeft, ChevronRight, Play, Square, Timer } from 'lucide-react';
+import { Volume2, Music, Loader2, Footprints, Trash2, History, ChevronLeft, ChevronRight, Play, Square, Timer, Waves } from 'lucide-react';
 
-// EXACT MAPPING FROM @keylist.txt
 const CUSTOM_KEY_MAP: Record<string, string> = {
     "1": "A1", "2": "B1", "3": "C#2", "4": "D2", "5": "E2", "6": "F#2", "7": "G#2", "8": "A2", "9": "B2", "0": "C#3",
     "q": "D3", "Q": "D#3", "w": "E3", "W": "F3", "e": "F#3", "E": "G3", "r": "G#3", "t": "A3", "T": "A#3", "y": "B3",
@@ -17,18 +16,12 @@ const CUSTOM_KEY_MAP: Record<string, string> = {
 
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
-// Generate standard 61-key layout (C2 to C7) for visual
-// But we need to handle A1 and B1 from your list too.
 const generatePianoKeys = () => {
     const whiteKeys = [];
     const blackKeys = [];
     let whiteIdx = 0;
-
-    // We start from A1 to match your list's lowest note
     const allNotes = [];
-    // Start from A1, B1
     allNotes.push({ note: 'A', octave: 1 }, { note: 'B', octave: 1 });
-    // Then C2 to C7
     for (let oct = 2; oct <= 6; oct++) {
         NOTE_NAMES.forEach(note => allNotes.push({ note, octave: oct }));
     }
@@ -37,11 +30,8 @@ const generatePianoKeys = () => {
     allNotes.forEach(k => {
         const fullNote = `${k.note}${k.octave}`;
         const isBlack = k.note.includes('#');
-        
-        // Find ALL keys that trigger this note
         const labels = Object.keys(CUSTOM_KEY_MAP).filter(key => CUSTOM_KEY_MAP[key] === fullNote);
         const label = labels.join(" ");
-
         if (isBlack) {
             blackKeys.push({ ...k, fullNote, label, pos: whiteIdx });
         } else {
@@ -49,17 +39,24 @@ const generatePianoKeys = () => {
             whiteIdx++;
         }
     });
-
     return { whiteKeys, blackKeys, totalWhite: whiteIdx };
 };
 
 const { whiteKeys, blackKeys, totalWhite } = generatePianoKeys();
 
 export const Piano = () => {
-    const { playNote, stopNote, volume, setVolume, isLoaded, sustain, toggleSustain, transpose, setTranspose, bpm, setBpm, isMetroPlaying, toggleMetronome } = useAudio();
+    const { playNote, stopNote, volume, setVolume, isLoaded, sustain, toggleSustain, transpose, setTranspose, bpm, setBpm, isMetroPlaying, toggleMetronome, instrumentType, setInstrumentType } = useAudio();
     const [heldNotes, setHeldNotes] = useState<Set<string>>(new Set());
     const [noteHistory, setNoteHistory] = useState<string[]>([]);
     const historyEndRef = useRef<HTMLDivElement>(null);
+
+    const scrollToBottom = () => {
+        historyEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    };
+
+    useEffect(() => {
+        scrollToBottom();
+    }, [noteHistory]);
 
     const handlePlay = useCallback((noteName: string) => {
         playNote(noteName);
@@ -80,17 +77,14 @@ export const Piano = () => {
         const onKeyDown = (e: KeyboardEvent) => {
             if (e.repeat) return;
             if (e.code === 'Space') { e.preventDefault(); toggleSustain(); return; }
-            
             const note = CUSTOM_KEY_MAP[e.key];
             if (note) handlePlay(note);
         };
-
         const onKeyUp = (e: KeyboardEvent) => {
             if (e.code === 'Space') return;
             const note = CUSTOM_KEY_MAP[e.key];
             if (note) handleStop(note);
         };
-
         window.addEventListener('keydown', onKeyDown);
         window.addEventListener('keyup', onKeyUp);
         return () => {
@@ -104,10 +98,19 @@ export const Piano = () => {
             {/* Header Controls */}
             <div className="flex items-center justify-between px-6 py-2 bg-black/40 border-b border-white/5 overflow-x-auto no-scrollbar">
                 <div className="flex items-center gap-4 flex-shrink-0">
-                    <div className="flex items-center gap-2 pr-4 border-r border-white/10">
-                        <Music className="w-3 h-3 text-[#B5B5B5]" />
-                        <span className="text-[10px] text-white uppercase tracking-[0.2em] font-black">Pro Custom Mapping</span>
+                    <div className="flex items-center gap-3 pr-4 border-r border-white/10">
+                        <Waves className="w-3 h-3 text-[#B5B5B5]" />
+                        <select 
+                            value={instrumentType}
+                            onChange={(e) => setInstrumentType(e.target.value as InstrumentType)}
+                            className="bg-transparent text-[10px] text-white focus:outline-none font-black uppercase tracking-widest cursor-pointer"
+                        >
+                            <option value="classic">Classic Piano</option>
+                            <option value="fat">Fat Synth</option>
+                            <option value="metal">Metal Synth</option>
+                        </select>
                     </div>
+
                     <div className="flex items-center gap-3 pr-4 border-r border-white/10">
                         <button onClick={toggleMetronome} className={`p-1.5 rounded-md transition-all ${isMetroPlaying ? 'bg-white/20 text-white' : 'text-[#595959]'}`}>
                             {isMetroPlaying ? <Square className="w-3 h-3 fill-current" /> : <Play className="w-3 h-3 fill-current" />}
@@ -118,6 +121,7 @@ export const Piano = () => {
                             <span className="text-[7px] text-[#595959] font-black">BPM</span>
                         </div>
                     </div>
+
                     <div className="flex items-center gap-3 pr-4 border-r border-white/10">
                         <span className="text-[7px] text-[#595959] uppercase tracking-widest font-black">Key</span>
                         <div className="flex items-center gap-2">
@@ -126,10 +130,12 @@ export const Piano = () => {
                             <button onClick={() => setTranspose(Math.min(10, transpose + 1))} className="text-[#B5B5B5] hover:text-white">›</button>
                         </div>
                     </div>
+
                     <button onClick={toggleSustain} className={`flex items-center gap-2 px-3 py-1 rounded-full border transition-all ${sustain ? 'bg-white/10 border-[#B5B5B5] text-white shadow-lg' : 'bg-transparent border-white/5 text-[#595959]'}`}>
                         <Footprints className="w-3 h-3" /><span className="text-[8px] uppercase tracking-[0.2em] font-bold">Sustain</span>
                     </button>
                 </div>
+
                 <div className="flex items-center gap-4 w-32 ml-4">
                     <Volume2 className="w-3 h-3 text-[#B5B5B5]" /><input type="range" min="-40" max="0" value={volume} onChange={(e) => setVolume(Number(e.target.value))} className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-[#B5B5B5]" />
                 </div>
@@ -137,7 +143,7 @@ export const Piano = () => {
 
             {/* Note History */}
             <div className="bg-black/20 h-10 border-b border-white/5 flex items-center px-6 justify-between overflow-hidden">
-                <div className="flex items-center gap-3 overflow-x-auto no-scrollbar py-2 flex-1">
+                <div className="flex items-center gap-3 overflow-x-auto no-scrollbar py-2 flex-1 scroll-smooth">
                     <History className="w-3 h-3 text-[#595959] flex-shrink-0" />
                     {noteHistory.length === 0 ? <span className="text-[8px] text-[#595959] uppercase tracking-[0.3em] font-bold italic">Ready...</span> : 
                         noteHistory.map((note, idx) => <span key={idx} className={`text-[10px] font-black transition-all ${idx === noteHistory.length - 1 ? 'text-white scale-125 mx-1' : 'text-[#595959]'}`}>{note}</span>)}
